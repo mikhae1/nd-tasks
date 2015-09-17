@@ -76,7 +76,7 @@ gulp.task('clone:init', function(taskCallback) {
             sharedModules[key] = {
               linked: [symlinks[i]]
             };
-            tasks[key] = lib.remoteFactory(srcSrv, 'readlink ' + symlinks[i]);
+            tasks[key] = lib.remoteFactory(srcSrv, 'readlink -f ' + symlinks[i]);
           } else {
             sharedModules[key].linked.push(symlinks[i]);
           }
