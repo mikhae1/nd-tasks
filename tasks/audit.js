@@ -25,6 +25,8 @@ var config = {
 };
 
 gulp.task('audit-ppl', function(gulpCallback) {
+  //FIXME: надо добавлять Compare: prev = 2015-35.log next = 2015-36.log в конец файла
+
   var filediff = '/Users/mmekhanov/tmp/diff-people.txt';
   var fileResult = '/tmp/PEOPLE.md';
   var users = {};
@@ -42,7 +44,10 @@ gulp.task('audit-ppl', function(gulpCallback) {
   rd.on('line', function(line) {
     lines.push(line);
     if (reUser.test(line)) {
-      users[line.match(reUser)[1]] = {};
+      users[line.match(reUser)[1]] = {
+        tsCreate: formatTs('2014-36'),
+        tsCreateRaw: '2014-36'
+      };
     }
   });
 
@@ -84,18 +89,18 @@ gulp.task('audit-ppl', function(gulpCallback) {
           // find created:
           if (lold.length < lnew.length) {
             newUsers = arrDiff(lold, lnew);
-            debug('added users: %s, date: %s', newUsers, tsNew);
+            // debug('added users: %s, date: %s', newUsers, tsNew);
             newUsers.forEach(function(user) {
-              users[user].tsCreate = formatTs(tsNew);
+              users[user].tsCreate = formatTs(tsOld);
               users[user].tsCreateRaw = tsOld;
             });
           }
           // find deleted:
           if (lold.length > lnew.length) {
             newUsers = arrDiff(lold, lnew);
-            debug('removed users: %s, date: %s', newUsers, tsNew);
+            // debug('removed users: %s, date: %s', newUsers, tsNew);
             newUsers.forEach(function(user) {
-              users[user].tsDelete = formatTs(tsNew);
+              users[user].tsDelete = formatTs(tsOld);
               users[user].tsDeleteRaw = tsOld;
             });
           }
@@ -108,7 +113,7 @@ gulp.task('audit-ppl', function(gulpCallback) {
       }
     }
 
-    //debug(users);
+    debug(users);
     var content = '';
     for (var u in users) {
       content += '\n';
@@ -119,9 +124,18 @@ gulp.task('audit-ppl', function(gulpCallback) {
     }
 
     fs.writeFileSync(fileResult, content, 'utf8');
+
+    //SQL
+    //UPDATE people SET createdAt='2015-09-17' where name='Mikhail Mekhanov'
+    var content = '';
+    for (var u in users) {
+      content += 'UPDATE people SET createdAt=\'' + users[u].tsCreate + '\' WHERE name=\'' + u + '\';';
+      content += '\n';
+    }
+    
+    fs.writeFileSync('/tmp/people_create.sql', content, 'utf8');
+    
     return gulpCallback();
-
-
   }
 
 
@@ -140,7 +154,7 @@ gulp.task('audit-ppl', function(gulpCallback) {
 
   function formatTs(str) {
     var s = moment(str.split('-')[0]).add(str.split('-')[1], 'weeks');
-    return s.format("DD-MM-YYYY");
+    return s.format("YYYY-MM-DD");
   }
 });
 
