@@ -1,181 +1,59 @@
 var gulp = require('gulp');
 var lib = require('../lib');
-var log = require('../lib').log;
-var github = require('octonode');
 var async = require('async');
-var chalk = require('chalk');
 var path = require('path');
 var fs = require('fs');
 var readline = require('readline');
 var moment = require('moment');
+const { exec } = require('child_process');
 
 var debug = require('debug')('audit');
 
-
 var config = {
   src: [
-    '/Users/mmekhanov/production/flow',
-    '/Users/mmekhanov/production/org-deals',
-    '/Users/mmekhanov/production/org-documents',
-    '/Users/mmekhanov/production/org-models',
-    '/Users/mmekhanov/production/org-shipments',
-    '/Users/mmekhanov/production/org-transports',
+    // '/Users/mmekhanov/repos/flow',
+    // '/Users/mmekhanov/repos/org-deals',
+    // '/Users/mmekhanov/repos/org-documents',
+    '/Users/mmekhanov/repos/org-models',
+    // '/Users/mmekhanov/repos/org-shipments',
+    // '/Users/mmekhanov/repos/org-transports',
+    // '/Users/mmekhanov/repos/org-counterparts',
+    // '/Users/mmekhanov/repos/org-yves',
   ],
-  dst: '/tmp/RESULT.md'
+
+  dst: '/Users/mmekhanov/tmp/AUDIT.md',
+
+  filter: {
+    from: moment('2017-01-01')
+  }
 };
-
-gulp.task('audit-ppl', function(gulpCallback) {
-  //FIXME: надо добавлять Compare: prev = 2015-35.log next = 2015-36.log в конец файла
-
-  var filediff = '/Users/mmekhanov/tmp/diff-people.txt';
-  var fileResult = '/tmp/PEOPLE.md';
-  var users = {};
-  //var reUser = /\(\d+,\'([a-zA-Z\s]+)\'/i;
-  var reUser = /\(\d+,\'([^,]+)\'/i;
-  var reTs = /Compare: prev = ([\d-]+)\.log.*next = ([\d-]+)\.log/i;
-  var lines = [];
-
-  var rd = readline.createInterface({
-    input: fs.createReadStream(filediff),
-    output: process.stdout,
-    terminal: false
-  });
-
-  rd.on('line', function(line) {
-    lines.push(line);
-    if (reUser.test(line)) {
-      users[line.match(reUser)[1]] = {
-        tsCreate: formatTs('2014-36'),
-        tsCreateRaw: '2014-36'
-      };
-    }
-  });
-
-  rd.on('close', function(line) {
-    console.log('END');
-    //return cb(null, blocks);
-    main();
-  });
-
-  function main() {
-    //debug(users);
-    var tsOld, tsNew, lold, lnew, newUsers;
-    var block = [];
-    var blockHead = '';
-    for (var i = 0; i < lines.length; i++) {
-      if (reTs.test(lines[i])) {
-        tsOld = lines[i].match(reTs)[1];
-        tsNew = lines[i].match(reTs)[2];
-
-        // process block
-        if (block.length > 0) {
-          lnew = [];
-          lold = [];
-          block.forEach(function(line) {
-            if (line.indexOf('< ') === 0) {
-              //debug('begin');
-              if (line.match(reUser)) {
-                lold.push(line.match(reUser)[1]);
-              }
-            } else if (line.indexOf('> ') === 0) {
-              if (line.match(reUser)) {
-                lnew.push(line.match(reUser)[1]);
-              }
-            }
-          });
-
-          // debug('users lold', lold);
-          // debug('users lnew', lnew);
-          // find created:
-          if (lold.length < lnew.length) {
-            newUsers = arrDiff(lold, lnew);
-            // debug('added users: %s, date: %s', newUsers, tsNew);
-            newUsers.forEach(function(user) {
-              users[user].tsCreate = formatTs(tsOld);
-              users[user].tsCreateRaw = tsOld;
-            });
-          }
-          // find deleted:
-          if (lold.length > lnew.length) {
-            newUsers = arrDiff(lold, lnew);
-            // debug('removed users: %s, date: %s', newUsers, tsNew);
-            newUsers.forEach(function(user) {
-              users[user].tsDelete = formatTs(tsOld);
-              users[user].tsDeleteRaw = tsOld;
-            });
-          }
-          block = [];
-        } else {
-
-        }
-      } else {
-        block.push(lines[i]);
-      }
-    }
-
-    debug(users);
-    var content = '';
-    for (var u in users) {
-      content += '\n';
-      content += '\n### ' + u;
-      if (users[u].hasOwnProperty('tsCreate')) content += '\n###### Created: ' + users[u].tsCreate;
-      if (users[u].hasOwnProperty('tsDelete')) content += '\n###### Deleted: ' + users[u].tsDelete;
-      content += '\n---';
-    }
-
-    fs.writeFileSync(fileResult, content, 'utf8');
-
-    //SQL
-    //UPDATE people SET createdAt='2015-09-17' where name='Mikhail Mekhanov'
-    var content = '';
-    for (var u in users) {
-      content += 'UPDATE people SET createdAt=\'' + users[u].tsCreate + '\' WHERE name=\'' + u + '\';';
-      content += '\n';
-    }
-    
-    fs.writeFileSync('/tmp/people_create.sql', content, 'utf8');
-    
-    return gulpCallback();
-  }
-
-
-  function arrDiff(a1, a2) {
-    var a = [],
-      diff = [];
-    for (var i = 0; i < a1.length; i++)
-      a[a1[i]] = true;
-    for (var i = 0; i < a2.length; i++)
-      if (a[a2[i]]) delete a[a2[i]];
-      else a[a2[i]] = true;
-    for (var k in a)
-      diff.push(k);
-    return diff;
-  }
-
-  function formatTs(str) {
-    var s = moment(str.split('-')[0]).add(str.split('-')[1], 'weeks');
-    return s.format("YYYY-MM-DD");
-  }
-});
-
 
 gulp.task('audit', function(gulpCallback) {
   var tasks = [];
-  for (var i = 0; i < config.src.length; i++) {
-    tasks.push(readBlocks(path.join(config.src[i], 'CHANGELOG.md')));
-  }
+  var data = [];
 
-  async.series(tasks, function(err, filesdata) {
+  config.src.forEach(src => {
+    tasks.push(gitReset(path.resolve(src)));
+  });
+
+  config.src.forEach(src => {
+    tasks.push(readBlocks(path.join(src, 'CHANGELOG.md')));
+  });
+
+  async.series(tasks, done);
+
+  function done(err) {
     if (err) return gulpCallback(err);
 
-    //debug(res);
+    debug(data);
+
     var content = '';
-    for (var i = 0; i < filesdata.length; i++) {
+    for (var i = 0; i < data.length; i++) {
       content += '\n#' + path.basename(config.src[i]) + '\n';
-      for (var j = 0; j < filesdata[i].length; j++) {
-        if (filesdata[i][j].ts !== 'unknown') {
-          content += filesdata[i][j].text;
-          content += '###### ' + filesdata[i][j].ts;
+      for (var j = 0; j < data[i].length; j++) {
+        if (data[i][j].ts !== 'unknown') {
+          content += data[i][j].text;
+          content += '###### ' + data[i][j].ts;
         }
       }
       content += '---';
@@ -188,7 +66,24 @@ gulp.task('audit', function(gulpCallback) {
 
     fs.writeFileSync(config.dst, content, 'utf8');
     return gulpCallback();
-  });
+  }
+
+  function gitReset(file) {
+    return cb => {
+      exec(`cd ${file} && git checkout -f master && git reset --hard origin/master`, (err, stdout, stderr) => {
+        console.log(file);
+
+        if (err) {
+          console.error(err);
+          return cb(err);
+        }
+
+        console.log(stdout, stderr);
+
+        return cb();
+      });
+    };
+  }
 
   function readBlocks(file) {
     return function(cb) {
@@ -210,6 +105,7 @@ gulp.task('audit', function(gulpCallback) {
         if (!filterGit.test(line)) {
           chunk += line + '\n';
         }
+
         if (vre.test(line)) {
           tag = line.match(vre)[1];
           tags.push(tag);
@@ -234,26 +130,31 @@ gulp.task('audit', function(gulpCallback) {
             cwd: path.dirname(file)
           })));
         });
+
         async.series(tasks, function(err, res) {
-          out = [];
+          var out = [];
           for (var i = 0; i < res.length; i++) {
             var tag = tags[i];
             var ts = 'unknown';
             if (res[i][0] === null) ts = res[i][1].stdout;
 
-            //debug(res[i]);
             blocks[tag].ts = ts;
-            out.push(blocks[tag]);
+
+            let filtered = false;
+            // if (config.filter && config.filter.from) {
+            //   console.log(ts);
+            //   process.exit(1);
+            // }
+
+            if (!filtered) out.push(blocks[tag]);
           }
+
+          data.push(out);
           return cb(null, out);
         });
       }
 
     };
   }
-
-
 });
 
-
-gulp.task('ls', ['list']);
