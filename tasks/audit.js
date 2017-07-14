@@ -141,6 +141,8 @@ gulp.task('audit', function(gulpCallback) {
             blocks[tag].ts = ts;
 
             let filtered = false;
+            process.exit(1);
+
             // if (config.filter && config.filter.from) {
             //   console.log(ts);
             //   process.exit(1);
