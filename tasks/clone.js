@@ -11,12 +11,10 @@ var fs = require('fs');
 var inquirer = require('inquirer');
 var debug = require('debug')('clone');
 
-
 var configFileName = 'deploy.config.js';
 var config;
 
 gulp.task('clone', ['clone:init', 'clone:copy', 'clone:npm_install', 'clone:link_shared']);
-
 
 gulp.task('clone:init', function(taskCallback) {
   config = findConfig();
@@ -32,9 +30,6 @@ gulp.task('clone:init', function(taskCallback) {
     .alias('h', 'help')
     .argv;
 
-  //argv.src = 'mmekhanov@localhost:/Users/mmekhanov/tmp/koala/noodoo';
-  //argv.src = 'mmekhanov@uds-koala-dev.moscow.eurochem.ru:/var/www/apps/noodoo';
-  //argv.dst = '/tmp/koala';
   var srcSrv = argv.src.split(':')[0];
   var srcDir = argv.src.split(':')[1];
   config = {
@@ -349,7 +344,7 @@ gulp.task('clone:link_shared', ['clone:npm_install'], function(taskCallback) {
 
 
 /**
- * Load config when you run it from: CWD or with gulp --gulpfile --cwd 
+ * Load config when you run it from: CWD or with gulp --gulpfile --cwd
  */
 function findConfig() {
   var p;

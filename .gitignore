@@ -1,5 +1,8 @@
 node_modules/
+
 .DS_Store
-*.log
+.log
+.bak
 .github.key
-deploy.config.js
+.env
+.vscode

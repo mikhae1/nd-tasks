@@ -1,3 +1,4 @@
 #!/bin/bash
 
-gulp --gulpfile /Users/mmekhanov/nd-tasks/gulpfile.js --cwd . "$@"
+cd "$HOME/nd-tasks"
+gulp --gulpfile "$HOME/nd-tasks/gulpfile.js" --cwd . "$@"

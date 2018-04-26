@@ -1,50 +1,33 @@
-var gulp = require('gulp');
-var lib = require('../lib');
-var log = require('../lib').log;
-var github = require('octonode');
-var async = require('async');
-var chalk = require('chalk');
+const gulp = require('gulp');
+const log = require('../lib').log;
+const chalk = require('chalk');
+const debug = require('debug')('list');
 
+const github = require('../lib/github').api(process.env.MY_GITHUB_TOKEN);
 
-gulp.task('list', function(gulpCallback) {
-  var client = github.client(lib.getGithubToken());
-
-  // //var url = '/orgs/noodoo/repos';
-  // var org = client.org('noodoo');
-  // org.repos(1, 100, function(err, data, headers) {
-  //   // console.log("error: " + err);
-  //   // console.log(data);
-  //   // console.log("headers:" + headers);
-
-  //   var c = 1;
-  //   for (var key in data) {
-  //     log(data[key].ssh_url, c++);
-  //   }
-
-  // });
-
-  function fact(url) {
-    return function(cb) {
-      client.get(url, {
-        page: 1,
-        per_page: 200
-      }, function(err, status, body, headers) {
-        if (err) return cb(err);
-
-        log(chalk.green(url));
-        for (var key in body) {
-          log(body[key].ssh_url);
-        }
-      });
-    };
-  }
-
-  var tasks = [];
-  for (var url in lib.repos) {
-    tasks.push(fact(lib.repos[url].api));
-  }
-  async.parallel(tasks, gulpCallback);
+gulp.task('list', async() => {
+  await getRepos('noodoo')
+  await getRepos('orichards')
+  await getRepos('minkolazer')
 });
 
+async function getRepos(name=proces.env.USER, limit=100) {
+  let res = await github.get(`/orgs/${name}/repos?per_page=${limit}`).catch(debugError);
+
+  if (!res)
+    res = await github.get(`/users/${name}/repos?per_page=${limit}`).catch(debugError);
+
+  log(`${name}, ${res.data.length} repos`);
+
+  res.data.forEach(repo => {
+    console.log(repo.ssh_url)
+  });
+
+  return res.data
+}
+
+function debugError(err) {
+  debug(err.response)
+}
 
 gulp.task('ls', ['list']);

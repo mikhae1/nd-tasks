@@ -11,11 +11,6 @@ var lib = require('./lib');
 var log = require('./lib').log;
 var tasks = require('require-dir')('./tasks');
 
-
-//gulp.task('default', ['list']);
-
-
-
 /**
  * Debug only
  */
