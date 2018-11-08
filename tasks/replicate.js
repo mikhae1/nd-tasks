@@ -8,6 +8,9 @@ const { GITHUB_AUTH: githubAuth } = process.env;
 const { GITLAB_AUTH: gitlabAuth } = process.env;
 const gitlabHost = 'gitlab.eurochem.ru'
 const gitlabProto = 'http://'
+const githubHost = 'github.com'
+const githubProto = 'https://'
+
 const gitlab = require('../lib/gitlab').api(`${gitlabProto}${gitlabHost}`);
 
 gulp.task('replicate', async() => {
@@ -21,17 +24,25 @@ gulp.task('replicate', async() => {
 async function repicate(orgName, project) {
   let repos = await getRepos(orgName)
   let config = [];
+  let skipped = [];
   for (let i = 0; i < repos.length; i++) {
     const repo = repos[i];
 
     debug('repo:', repo)
+
+    if (repo.name.includes('.')) {
+      log(`...skipping ${repo.name}`)
+      skipped.push(repo)
+      continue
+    }
+
     log('processing "%s" (%s/%s)...', repo.name, i + 1, repos.length)
     project = await gitlabGetProject(repo.path)
 
     if (!project)
       await gitlabCreateProject(repo.path, { description: repo.description });
 
-    const srcUrl = `https://${githubAuth}@github.com/${repo.path}`;
+    const srcUrl = `${githubProto}${githubAuth}@${githubHost}/${repo.path}`;
     const dstUrl = `${gitlabProto}${gitlabAuth}@${gitlabHost}/${repo.path}`;
 
     debug('srcUrl', srcUrl)
@@ -40,7 +51,7 @@ async function repicate(orgName, project) {
     let dstArr = [ { url: dstUrl } ]
     let srcObj = {
       url: srcUrl,
-      host: 'github.com',
+      host: githubHost,
       owner: orgName,
       name: repo.name
     };
@@ -48,7 +59,15 @@ async function repicate(orgName, project) {
     console.log(`mirroring from ${srcObj.host}/${repo.path} to ${gitlabHost}/${repo.path}`)
     await mirror(srcObj, dstArr);
 
+    // mech config
     let str = `
+  # ${repo.name}
+  ${githubHost}:${repo.path}:
+    protocol: ${githubProto.replace(/\:\/\//,'')}
+    auth: "${githubAuth}"
+    mirrors:
+      - ${gitlabHost}:${repo.path}
+
   ${gitlabHost}:${repo.path}:
     protocol: ${gitlabProto.replace(/\:\/\//,'')}
     auth: "${gitlabAuth}"`;
@@ -57,7 +76,10 @@ async function repicate(orgName, project) {
     config.push(str);
   }
 
-  log('config:')
+  log('skipped:')
+  skipped.forEach(s => console.log(s))
+
+  log('mech config:')
   config.forEach(s => {
     console.log(s);
   });
